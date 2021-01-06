@@ -60,8 +60,7 @@ secstream_raw(struct lws *wsi, enum lws_callback_reasons reason, void *user,
 		if (!h)
 			break;
 		lws_sul_cancel(&h->sul_timeout);
-		lwsl_info("%s: %s, %s LWS_CALLBACK_CLOSED_CLIENT_HTTP\n",
-			  __func__, lws_ss_tag(h),
+		lwsl_info("%s: %s, %s RAW_CLOSE\n", __func__, lws_ss_tag(h),
 			  h->policy ? h->policy->streamtype : "no policy");
 		h->wsi = NULL;
 #if defined(LWS_WITH_SERVER)
@@ -69,6 +68,12 @@ secstream_raw(struct lws *wsi, enum lws_callback_reasons reason, void *user,
 		lws_dll2_remove(&h->cli_list);
 		lws_pt_unlock(pt);
 #endif
+
+		/* wsi is going down anyway */
+		r = lws_ss_event_helper(h, LWSSSCS_DISCONNECTED);
+		if (r == LWSSSSRET_DESTROY_ME)
+			return _lws_ss_handle_state_ret_CAN_DESTROY_HANDLE(r, wsi, &h);
+
 		if (h->policy && !(h->policy->flags & LWSSSPOLF_OPPORTUNISTIC) &&
 #if defined(LWS_WITH_SERVER)
 			    !(h->info.flags & LWSSSINFLAGS_ACCEPTED) && /* not server */
@@ -79,10 +84,7 @@ secstream_raw(struct lws *wsi, enum lws_callback_reasons reason, void *user,
 				return _lws_ss_handle_state_ret_CAN_DESTROY_HANDLE(r, wsi, &h);
 			break;
 		}
-		/* wsi is going down anyway */
-		r = lws_ss_event_helper(h, LWSSSCS_DISCONNECTED);
-		if (r == LWSSSSRET_DESTROY_ME)
-			return _lws_ss_handle_state_ret_CAN_DESTROY_HANDLE(r, wsi, &h);
+
 		break;
 
 	case LWS_CALLBACK_RAW_CONNECTED:
@@ -91,6 +93,7 @@ secstream_raw(struct lws *wsi, enum lws_callback_reasons reason, void *user,
 		h->retry = 0;
 		h->seqstate = SSSEQ_CONNECTED;
 		lws_sul_cancel(&h->sul);
+		lws_metrics_caliper_report(h->cal_txn, METRES_GO);
 		r = lws_ss_event_helper(h, LWSSSCS_CONNECTED);
 		if (r != LWSSSSRET_OK)
 			return _lws_ss_handle_state_ret_CAN_DESTROY_HANDLE(r, wsi, &h);
