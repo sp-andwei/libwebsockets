@@ -133,7 +133,7 @@ else()
 	option(LWS_WITH_RFC6724 "Enable RFC6724 DNS result sorting" OFF)
 endif()
 option(LWS_WITH_SYS_FAULT_INJECTION "Enable fault injection support" OFF)
-option(LWS_WITH_SYS_METRICS "Lws Metrics API" ON)
+option(LWS_WITH_SYS_METRICS "Lws Metrics API" OFF)
 
 #
 # Secure Streams

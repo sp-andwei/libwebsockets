@@ -211,10 +211,13 @@ static lws_state_notify_link_t * const app_notifier_list[] = {
 static int
 my_metric_report(lws_metric_pub_t *mp)
 {
-	char buf[128];
+	lws_metric_bucket_t *sub = mp->u.hist.head;
+	char buf[192];
 
-	if (lws_metrics_format(mp, buf, sizeof(buf)))
-		lwsl_user("%s: %s\n", __func__, buf);
+	do {
+		if (lws_metrics_format(mp, &sub, buf, sizeof(buf)))
+			lwsl_user("%s: %s\n", __func__, buf);
+	} while ((mp->flags & LWSMTFL_REPORT_HIST) && sub);
 
 	return 0;
 }
@@ -281,7 +284,7 @@ int main(int argc, const char **argv)
 	info.options = LWS_SERVER_OPTION_EXPLICIT_VHOSTS |
 		       LWS_SERVER_OPTION_H2_JUST_FIX_WINDOW_UPDATE_OVERFLOW |
 		       LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
-	info.fd_limit_per_thread = 1 + 32 + 1;
+	info.fd_limit_per_thread = 1 + 6 + 1;
 	info.pss_policies_json = default_ss_policy;
 	info.port = CONTEXT_PORT_NO_LISTEN;
 

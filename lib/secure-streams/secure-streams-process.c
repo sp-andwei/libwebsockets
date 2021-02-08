@@ -51,26 +51,6 @@
 
 #include <private-lib-core.h>
 
-/*
- * Because both sides of the connection share the conn, we allocate it
- * during accepted adoption, and both sides point to it.
- *
- * When .ss or .wsi close, they must NULL their entry here so no dangling
- * refereneces.
- *
- * The last one of the accepted side and the onward side to close frees it.
- */
-
-struct conn {
-	struct lws_ss_serialization_parser parser;
-
-	lws_dsh_t		*dsh;	/* unified buffer for both sides */
-	struct lws		*wsi;	/* the proxy's client side */
-	lws_ss_handle_t		*ss;	/* the onward, ss side */
-
-	lws_ss_conn_states_t	state;
-};
-
 struct raw_pss {
 	struct conn		*conn;
 };

@@ -668,7 +668,9 @@ _lws_ss_client_connect(lws_ss_handle_t *h, int is_retry, void *conn_if_sspc_onw)
 #if defined(LWS_WITH_SYS_METRICS)
 	/* possibly already hanging connect retry... */
 	if (!h->cal_txn.mt)
-		lws_metrics_caliper_bind(h->cal_txn, h->context->mt_ss_conn);
+		lws_metrics_caliper_bind(h->cal_txn, h->context->mth_ss_conn);
+
+	lws_metrics_tag_add(&h->cal_txn.mtags_owner, "ss", h->policy->streamtype);
 #endif
 
 	h->txn_ok = 0;
@@ -1175,6 +1177,13 @@ lws_ss_destroy(lws_ss_handle_t **ppss)
 
 #if defined(LWS_WITH_SYS_FAULT_INJECTION)
 	lws_fi_destroy(&h->fi);
+#endif
+
+#if defined(LWS_WITH_SYS_METRICS)
+	/*
+	 * If any hanging caliper measurement, dump it, and free any tags
+	 */
+	lws_metrics_caliper_report_hist(h->cal_txn, (struct lws *)NULL);
 #endif
 
 	lws_sul_cancel(&h->sul_timeout);

@@ -705,8 +705,9 @@ lws_async_dns_query(struct lws_context *context, int tsi, const char *name,
 		if (c->results)
 			c->refcount++;
 
-		lws_metric_event(context->mt_adns_cache,
-				 METRES_GO, 0);
+#if defined(LWS_WITH_SYS_METRICS)
+		lws_metric_event(context->mt_adns_cache,  METRES_GO, 0);
+#endif
 
 		if (cb(wsi, name, c->results, m, opaque) == NULL)
 			return LADNS_RET_FAILED_WSI_CLOSED;
@@ -715,7 +716,9 @@ lws_async_dns_query(struct lws_context *context, int tsi, const char *name,
 	} else
 		lwsl_info("%s: %s uncached\n", __func__, name);
 
+#if defined(LWS_WITH_SYS_METRICS)
 	lws_metric_event(context->mt_adns_cache, METRES_NOGO, 0);
+#endif
 
 	/*
 	 * It's a 1.2.3.4 or ::1 type IP address already?  We don't need a dns

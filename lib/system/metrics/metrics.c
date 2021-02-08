@@ -189,7 +189,7 @@ lws_metrics_periodic_cb(lws_sorted_usec_list_t *sul)
 
 	lws_start_foreach_dll(struct lws_dll2 *, d, dmp->owner.head) {
 		lws_metric_t *mt = lws_container_of(d, lws_metric_t, list);
-		lws_metric_pub_t *pub = priv_to_pub(mt);
+		lws_metric_pub_t *pub = lws_metrics_priv_to_pub(mt);
 
 		lws_metrics_report_and_clear(ctx, pub);
 
@@ -357,7 +357,7 @@ lws_metric_create(struct lws_context *ctx, uint8_t flags, const char *name)
 	if (!mt)
 		return NULL;
 
-	pub = priv_to_pub(mt);
+	pub = lws_metrics_priv_to_pub(mt);
 	pub->name = (char *)pub + sizeof(lws_metric_pub_t);
 	memcpy((char *)pub->name, name, nl + 1);
 	pub->flags = flags;
@@ -436,7 +436,7 @@ lws_metric_rebind_policies(struct lws_context *ctx)
 	lws_start_foreach_dll_safe(struct lws_dll2 *, d, d1,
 				   ctx->owner_mtr_no_pol.head) {
 		lws_metric_t *mt = lws_container_of(d, lws_metric_t, list);
-		lws_metric_pub_t *pub = priv_to_pub(mt);
+		lws_metric_pub_t *pub = lws_metrics_priv_to_pub(mt);
 
 		po = lws_metrics_find_policy(ctx, pub->name);
 		if (po) {
@@ -457,7 +457,7 @@ int
 lws_metric_destroy(lws_metric_t **pmt, int keep)
 {
 	lws_metric_t *mt = *pmt;
-	lws_metric_pub_t *pub = priv_to_pub(mt);
+	lws_metric_pub_t *pub = lws_metrics_priv_to_pub(mt);
 
 	if (!mt)
 		return 0;
@@ -573,7 +573,8 @@ lws_metrics_hist_bump_(lws_metric_pub_t *pub, const char *name)
 	char *nm;
 
 	if (!(pub->flags & LWSMTFL_REPORT_HIST)) {
-		lwsl_err("%s: %s flags %d\n", __func__, pub->name, pub->flags);
+		lwsl_err("%s: %s not histogram: flags %d\n", __func__,
+				pub->name, pub->flags);
 		assert(0);
 	}
 	assert(nl < 255);
@@ -612,6 +613,52 @@ happy:
 }
 
 int
+lws_metrics_hist_bump_describe_wsi(struct lws *wsi, lws_metric_pub_t *pub,
+				   const char *name)
+{
+	char desc[192], d1[48], *p = desc, *end = desc + sizeof(desc);
+
+#if defined(LWS_WITH_SECURE_STREAMS)
+#if defined(LWS_WITH_SECURE_STREAMS_PROXY_API)
+	if (wsi->client_bound_sspc) {
+		lws_sspc_handle_t *h = (lws_sspc_handle_t *)wsi->a.opaque_user_data;
+		if (h)
+			p += lws_snprintf(p, lws_ptr_diff_size_t(end, p), "ss=\"%s\",",
+				  h->ssi.streamtype);
+	} else
+		if (wsi->client_proxy_onward) {
+			struct conn *conn = (struct conn *)wsi->a.opaque_user_data;
+
+			if (conn && conn->ss)
+			p += lws_snprintf(p, lws_ptr_diff_size_t(end, p), "ss=\"%s\",",
+				  conn->ss->info.streamtype);
+		} else
+#endif
+	if (wsi->for_ss) {
+		lws_ss_handle_t *h = (lws_ss_handle_t *)wsi->a.opaque_user_data;
+		if (h)
+			p += lws_snprintf(p, lws_ptr_diff_size_t(end, p), "ss=\"%s\",",
+				  h->info.streamtype);
+	}
+#endif
+
+#if defined(LWS_WITH_CLIENT)
+	if (wsi->stash && wsi->stash->cis[CIS_HOST])
+		p += lws_snprintf(p, lws_ptr_diff_size_t(end, p), "hostname=\"%s\",",
+				wsi->stash->cis[CIS_HOST]);
+#endif
+
+	lws_sa46_write_numeric_address(&wsi->sa46_peer, d1, sizeof(d1));
+	p += lws_snprintf(p, lws_ptr_diff_size_t(end, p), "peer=\"%s\",", d1);
+
+	p += lws_snprintf(p, lws_ptr_diff_size_t(end, p), "%s", name);
+
+	lws_metrics_hist_bump_(pub, desc);
+
+	return 0;
+}
+
+int
 lws_metrics_foreach(struct lws_context *ctx, void *user,
 		    int (*cb)(lws_metric_pub_t *pub, void *user))
 {
@@ -621,29 +668,29 @@ lws_metrics_foreach(struct lws_context *ctx, void *user,
 				   ctx->owner_mtr_no_pol.head) {
 		lws_metric_t *mt = lws_container_of(d, lws_metric_t, list);
 
-		n = cb(priv_to_pub(mt), user);
+		n = cb(lws_metrics_priv_to_pub(mt), user);
 		if (n)
 			return n;
 
 	} lws_end_foreach_dll_safe(d, d1);
 
-	lws_start_foreach_dll_safe(struct lws_dll2 *, d, d1,
+	lws_start_foreach_dll_safe(struct lws_dll2 *, d2, d3,
 				   ctx->owner_mtr_dynpol.head) {
 		lws_metric_policy_dyn_t *dm =
-			lws_container_of(d, lws_metric_policy_dyn_t, list);
+			lws_container_of(d2, lws_metric_policy_dyn_t, list);
 
 		lws_start_foreach_dll_safe(struct lws_dll2 *, e, e1,
 					   dm->owner.head) {
 
 			lws_metric_t *mt = lws_container_of(e, lws_metric_t, list);
 
-			n = cb(priv_to_pub(mt), user);
+			n = cb(lws_metrics_priv_to_pub(mt), user);
 			if (n)
 				return n;
 
 		} lws_end_foreach_dll_safe(e, e1);
 
-	} lws_end_foreach_dll_safe(d, d1);
+	} lws_end_foreach_dll_safe(d2, d3);
 
 	return 0;
 }
@@ -717,7 +764,7 @@ _lws_metrics_format(lws_metric_pub_t *pub, lws_usec_t now, int gng,
 }
 
 int
-lws_metrics_format(lws_metric_pub_t *pub, char *buf, size_t len)
+lws_metrics_format(lws_metric_pub_t *pub, lws_metric_bucket_t **sub, char *buf, size_t len)
 {
 	char *end = buf + len - 1, *obuf = buf;
 	lws_usec_t t = lws_now_usecs();
@@ -726,33 +773,25 @@ lws_metrics_format(lws_metric_pub_t *pub, char *buf, size_t len)
 	if (pub->flags & LWSMTFL_REPORT_DUTY_WALLCLOCK_US)
 		schema = humanize_schema_us;
 
-	buf += lws_snprintf(buf, lws_ptr_diff_size_t(end, buf), "%s: ",
-				pub->name);
-
 	if (pub->flags & LWSMTFL_REPORT_HIST) {
-		lws_metric_bucket_t *buck = pub->u.hist.head;
 
-		buf += lws_snprintf(buf, lws_ptr_diff_size_t(end, buf),
-				    "tot: %llu, [ ",
-				    (unsigned long long)pub->u.hist.total_count);
+		if (*sub == NULL)
+			return 0;
 
-		while (buck) {
+		if (*sub) {
 			buf += lws_snprintf(buf, lws_ptr_diff_size_t(end, buf),
-					    "%s: %llu",
-					    lws_metric_bucket_name(buck),
-					    (unsigned long long)buck->count);
-			if (buck->next && lws_ptr_diff_size_t(end, buf) > 3) {
-				*buf++ = ',';
-				*buf++ = ' ';
-			}
+					    "%s{%s} %llu", pub->name,
+					    lws_metric_bucket_name(*sub),
+					    (unsigned long long)(*sub)->count);
 
-			buck = buck->next;
+			*sub = (*sub)->next;
 		}
-
-		buf += lws_snprintf(buf, lws_ptr_diff_size_t(end, buf), " ]");
 
 		goto happy;
 	}
+
+	buf += lws_snprintf(buf, lws_ptr_diff_size_t(end, buf), "%s: ",
+				pub->name);
 
 	if (!pub->u.agg.count[METRES_GO] && !pub->u.agg.count[METRES_NOGO])
 		return 0;
@@ -781,6 +820,11 @@ lws_metrics_format(lws_metric_pub_t *pub, char *buf, size_t len)
 	}
 
 happy:
+	if (pub->flags & LWSMTFL_REPORT_HIST)
+		return 1;
+
+	*sub = NULL;
+
 	return lws_ptr_diff(buf, obuf);
 }
 
@@ -801,7 +845,7 @@ lws_metric_event(lws_metric_t *mt, char go_nogo, u_mt_t val)
 	if (!mt)
 		return;
 
-	pub = priv_to_pub(mt);
+	pub = lws_metrics_priv_to_pub(mt);
 	assert(!(pub->flags & LWSMTFL_REPORT_HIST));
 
 	pub->us_last = lws_now_usecs();
@@ -820,11 +864,18 @@ lws_metric_event(lws_metric_t *mt, char go_nogo, u_mt_t val)
 
 
 void
-lws_metrics_hist_bump_priv_tagged(lws_metric_pub_t *mt, lws_dll2_owner_t *tow)
+lws_metrics_hist_bump_priv_tagged(lws_metric_pub_t *mt, lws_dll2_owner_t *tow,
+				  lws_dll2_owner_t *tow2)
 {
-	char qual[128];
+	char qual[192];
+	size_t p;
 
-	lws_metrics_tags_serialize(tow, qual, sizeof(qual));
+	p = lws_metrics_tags_serialize(tow, qual, sizeof(qual));
+	if (tow2)
+		lws_metrics_tags_serialize(tow2, qual + p,
+				sizeof(qual) - p);
+
+	lwsl_warn("%s: '%s'\n", __func__, qual);
 
 	lws_metrics_hist_bump(mt, qual);
 }

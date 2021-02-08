@@ -362,7 +362,8 @@ lws_client_connect_via_info(const struct lws_client_connect_info *i)
 			&wsi->lc, "%s/%s/%s/(%s)", i->method ? i->method : "WS",
 			wsi->role_ops->name, i->address,
 #if defined(LWS_WITH_SECURE_STREAMS_PROXY_API)
-			wsi->client_bound_sspc ? lws_sspc_tag((lws_sspc_handle_t *)i->opaque_user_data) :
+			wsi->client_bound_sspc ?
+				lws_sspc_tag((lws_sspc_handle_t *)i->opaque_user_data) :
 #endif
 			lws_ss_tag(((lws_ss_handle_t *)i->opaque_user_data)));
 	} else

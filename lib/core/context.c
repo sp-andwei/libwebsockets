@@ -705,15 +705,12 @@ lws_create_context(const struct lws_context_creation_info *info)
 						   "n.cn.adns");
 #endif
 #if defined(LWS_WITH_SECURE_STREAMS)
-	context->mt_ss_conn = lws_metric_create(context,
-						LWSMTFL_REPORT_MEAN |
-						LWSMTFL_REPORT_DUTY_WALLCLOCK_US,
-						"n.ss.conn");
+	context->mth_ss_conn = lws_metric_create(context, LWSMTFL_REPORT_HIST,
+						 "n.ss.conn");
 #endif
 #if defined(LWS_WITH_SECURE_STREAMS_PROXY_API)
 	context->mt_ss_cliprox_conn = lws_metric_create(context,
-							LWSMTFL_REPORT_MEAN |
-							LWSMTFL_REPORT_DUTY_WALLCLOCK_US,
+			LWSMTFL_REPORT_HIST,
 							"n.ss.cliprox.conn");
 	context->mt_ss_cliprox_paylat = lws_metric_create(context,
 							  LWSMTFL_REPORT_MEAN |

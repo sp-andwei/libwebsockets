@@ -754,10 +754,13 @@ static lws_state_notify_link_t * const app_notifier_list[] = {
 static int
 my_metric_report(lws_metric_pub_t *mp)
 {
-	char buf[128];
+	lws_metric_bucket_t *sub = mp->u.hist.head;
+	char buf[192];
 
-	if (lws_metrics_format(mp, buf, sizeof(buf)))
-		lwsl_user("%s: %s\n", __func__, buf);
+	do {
+		if (lws_metrics_format(mp, &sub, buf, sizeof(buf)))
+			lwsl_user("%s: %s\n", __func__, buf);
+	} while ((mp->flags & LWSMTFL_REPORT_HIST) && sub);
 
 	return 0;
 }

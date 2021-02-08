@@ -139,6 +139,41 @@
 
 #include "libwebsockets.h"
 
+/*
+ * lws_dsh
+*/
+
+typedef struct lws_dsh_obj_head {
+	lws_dll2_owner_t		owner;
+	size_t				total_size; /* for this kind in dsh */
+	int				kind;
+} lws_dsh_obj_head_t;
+
+typedef struct lws_dsh_obj {
+	lws_dll2_t			list;	/* must be first */
+	struct lws_dsh	  		*dsh;	/* invalid when on free list */
+	size_t				size;	/* invalid when on free list */
+	size_t				asize;
+	int				kind; /* so we can account at free */
+} lws_dsh_obj_t;
+
+typedef struct lws_dsh {
+	lws_dll2_t			list;
+	uint8_t				*buf;
+	lws_dsh_obj_head_t		*oha;	/* array of object heads/kind */
+	size_t				buffer_size;
+	size_t				locally_in_use;
+	size_t				locally_free;
+	int				count_kinds;
+	uint8_t				being_destroyed;
+	/*
+	 * Overallocations at create:
+	 *
+	 *  - the buffer itself
+	 *  - the object heads array
+	 */
+} lws_dsh_t;
+
  /*
   *
   *  ------ lifecycle defines ------
@@ -456,7 +491,7 @@ struct lws_context {
 	lws_metric_t			*mt_adns_cache; /* async dns lookup lat */
 #endif
 #if defined(LWS_WITH_SECURE_STREAMS)
-	lws_metric_t			*mt_ss_conn; /* SS connection latency */
+	lws_metric_t			*mth_ss_conn; /* SS connection outcomes */
 #endif
 #if defined(LWS_WITH_SECURE_STREAMS_PROXY_API)
 	lws_metric_t			*mt_ss_cliprox_conn; /* SS cli->prox conn */

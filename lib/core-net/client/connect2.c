@@ -34,6 +34,9 @@ lws_getaddrinfo46(struct lws *wsi, const char *ads, struct addrinfo **result)
 {
 	lws_metrics_caliper_declare(cal, wsi->a.context->mt_conn_dns);
 	struct addrinfo hints;
+#if defined(LWS_WITH_SYS_METRICS)
+	char buckname[32];
+#endif
 	int n;
 
 	memset(&hints, 0, sizeof(hints));
@@ -81,15 +84,23 @@ lws_getaddrinfo46(struct lws *wsi, const char *ads, struct addrinfo **result)
 #endif
 		wsi->dns_reachability = 1;
 		lws_metrics_caliper_report(cal, METRES_NOGO);
-		lws_metrics_hist_bump_priv_wsi(wsi, mth_conn_failures, "dns=badsrv");
-		lwsl_notice("%s: asking to recheck CPD in 1ms\n", __func__);
-		lws_system_cpd_start_defer(wsi->a.context, LWS_US_PER_MS);
+#if defined(LWS_WITH_SYS_METRICS)
+		lws_snprintf(buckname, sizeof(buckname), "dns=\"unreachable %d\"", n);
+		lws_metrics_hist_bump_priv_wsi(wsi, mth_conn_failures, buckname);
+#endif
+		lwsl_notice("%s: asking to recheck CPD in 1s\n", __func__);
+		lws_system_cpd_start_defer(wsi->a.context, LWS_US_PER_SEC);
 	}
 
 	lwsl_info("%s: getaddrinfo '%s' says %d\n", __func__, ads, n);
 
-	if (n < 0)
-		lws_metrics_hist_bump_priv_wsi(wsi, mth_conn_failures, "dns=nxdomain");
+#if defined(LWS_WITH_SYS_METRICS)
+	if (n < 0) {
+		lws_snprintf(buckname, sizeof(buckname), "dns=\"nores %d\"", n);
+		lws_metrics_hist_bump_priv_wsi(wsi, mth_conn_failures, buckname);
+	}
+#endif
+
 	lws_metrics_caliper_report(cal, n >= 0 ? METRES_GO : METRES_NOGO);
 
 	return n;

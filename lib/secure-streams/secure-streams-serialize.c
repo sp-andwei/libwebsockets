@@ -1233,8 +1233,12 @@ payload_ff:
 			 * CREATING now so we'll know the metadata to sync.
 			 */
 
-			/* at this point, we connected to the proxy OK */
-			lws_metrics_caliper_report(h->cal_txn, METRES_GO);
+#if defined(LWS_WITH_SYS_METRICS)
+			/*
+			 * If any hanging caliper measurement, dump it, and free any tags
+			 */
+			lws_metrics_caliper_report_hist(h->cal_txn, (struct lws *)NULL);
+#endif
 
 			if (!h->creating_cb_done) {
 				if (lws_ss_check_next_state(&h->lc, &h->prev_ss_state,

@@ -295,10 +295,8 @@ __lws_close_free_wsi(struct lws *wsi, enum lws_close_status reason,
     (defined(LWS_WITH_CLIENT) || defined(LWS_WITH_SERVER))
 	/* wsi level: only reports if dangling caliper */
 	if (wsi->cal_conn.mt && wsi->cal_conn.us_start) {
-		if ((priv_to_pub(wsi->cal_conn.mt)->flags) & LWSMTFL_REPORT_HIST) {
-			lws_metrics_hist_bump_priv_tagged(priv_to_pub(wsi->cal_conn.mt),
-						&wsi->cal_conn.mtags_owner);
-			lws_metrics_caliper_done(wsi->cal_conn);
+		if ((lws_metrics_priv_to_pub(wsi->cal_conn.mt)->flags) & LWSMTFL_REPORT_HIST) {
+			lws_metrics_caliper_report_hist(wsi->cal_conn, (struct lws *)NULL);
 		} else {
 			lws_metrics_caliper_report(wsi->cal_conn, METRES_NOGO);
 			lws_metrics_caliper_done(wsi->cal_conn);
@@ -732,11 +730,12 @@ async_close:
 
 				if (h) { // && (h->info.flags & LWSSSINFLAGS_ACCEPTED)) {
 
+#if defined(LWS_WITH_SYS_METRICS)
 					/*
-					 * ss level: only reports if dangling caliper
-					 * not already reported
+					 * If any hanging caliper measurement, dump it, and free any tags
 					 */
-					lws_metrics_caliper_report(h->cal_txn, METRES_NOGO);
+					lws_metrics_caliper_report_hist(h->cal_txn, (struct lws *)NULL);
+#endif
 
 					h->cwsi = NULL;
 					//wsi->a.opaque_user_data = NULL;
@@ -752,7 +751,7 @@ async_close:
 				 * ss level: only reports if dangling caliper
 				 * not already reported
 				 */
-				lws_metrics_caliper_report(h->cal_txn, METRES_NOGO);
+				lws_metrics_caliper_report_hist(h->cal_txn, wsi);
 
 				h->wsi = NULL;
 				wsi->a.opaque_user_data = NULL;

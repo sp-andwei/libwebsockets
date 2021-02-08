@@ -125,6 +125,18 @@ OpenSSL_client_verify_callback(int preverify_ok, X509_STORE_CTX *x509_ctx)
 			lwsl_err("SSL error: %s (preverify_ok=%d;err=%d;"
 				 "depth=%d)\n", msg, preverify_ok, err, depth);
 
+#if defined(LWS_WITH_SYS_METRICS)
+			{
+				char buckname[64];
+
+				lws_snprintf(buckname, sizeof(buckname),
+					     "tls=\"%s\"", msg);
+				lws_metrics_hist_bump_describe_wsi(wsi,
+					lws_metrics_priv_to_pub(wsi->a.context->mth_conn_failures),
+					buckname);
+			}
+#endif
+
 			return preverify_ok;	// not ok
 		}
 	}
@@ -517,7 +529,12 @@ lws_tls_client_confirm_peer_cert(struct lws *wsi, char *ebuf, size_t ebuf_len)
 	}
 
 	lwsl_info("%s: cert problem: %s\n", __func__, type);
-	lws_metrics_hist_bump_priv_wsi(wsi, mth_conn_failures, type);
+
+#if defined(LWS_WITH_SYS_METRICS)
+	lws_metrics_hist_bump_describe_wsi(wsi,
+			lws_metrics_priv_to_pub(wsi->a.context->mth_conn_failures), type);
+#endif
+
 	if (wsi->tls.use_ssl & avoid) {
 		lwsl_info("%s: allowing anyway\n", __func__);
 

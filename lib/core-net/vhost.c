@@ -833,6 +833,7 @@ lws_create_vhost(struct lws_context *context,
 			p += lws_snprintf(p, lws_ptr_diff_size_t(end, p), ".%s", info->iface);
 		if (info->port && !(info->port & 0xffff))
 			p += lws_snprintf(p, lws_ptr_diff_size_t(end, p), ".%u", info->port);
+		p += lws_snprintf(p, lws_ptr_diff_size_t(end, p), ".rx");
 		vh->mt_traffic_rx = lws_metric_create(context, 0, buf);
 		p[-2] = 't';
 		vh->mt_traffic_tx = lws_metric_create(context, 0, buf);

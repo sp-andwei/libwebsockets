@@ -226,7 +226,11 @@ lws_tls_client_confirm_peer_cert(struct lws *wsi, char *ebuf, size_t ebuf_len)
 	char *sb = (char *)&pt->serv_buf[0];
 
 	if (!peer) {
-		lws_metrics_hist_bump_priv_wsi(wsi, mth_conn_failures, "tls=nocert");
+#if defined(LWS_WITH_SYS_METRICS)
+		lws_metrics_hist_bump_describe_wsi(wsi, lws_metrics_priv_to_pub(
+					wsi->a.context->mth_conn_failures),
+						   "tls=\"nocert\"");
+#endif
 		lwsl_info("peer did not provide cert\n");
 		lws_snprintf(ebuf, ebuf_len, "no peer cert");
 
@@ -241,28 +245,36 @@ lws_tls_client_confirm_peer_cert(struct lws *wsi, char *ebuf, size_t ebuf_len)
 		return 0;
 
 	case X509_V_ERR_HOSTNAME_MISMATCH:
-		type = "tls=hostname";
+		type = "hostname";
 		avoid = LCCSCF_SKIP_SERVER_CERT_HOSTNAME_CHECK;
 		break;
 
 	case X509_V_ERR_INVALID_CA:
-		type = "tls=invalidca";
+		type = "invalidca";
 		avoid = LCCSCF_ALLOW_SELFSIGNED;
 		break;
 
 	case X509_V_ERR_CERT_NOT_YET_VALID:
-		type = "tls=notyetvalid";
+		type = "notyetvalid";
 		avoid = LCCSCF_ALLOW_EXPIRED;
 		break;
 
 	case X509_V_ERR_CERT_HAS_EXPIRED:
-		type = "tls=expired";
+		type = "expired";
 		avoid = LCCSCF_ALLOW_EXPIRED;
 		break;
 	}
 
 	lwsl_info("%s: cert problem: %s\n", __func__, type);
-	lws_metrics_hist_bump_priv_wsi(wsi, mth_conn_failures, type);
+#if defined(LWS_WITH_SYS_METRICS)
+	{
+		char buckname[64];
+		lws_snprintf(buckname, sizeof(buckname), "tls=\"%s\"", type);
+		lws_metrics_hist_bump_describe_wsi(wsi,
+		     lws_metrics_priv_to_pub(wsi->a.context->mth_conn_failures),
+			      buckname);
+	}
+#endif
 	if (wsi->tls.use_ssl & avoid) {
 		lwsl_info("%s: allowing anyway\n", __func__);
 
