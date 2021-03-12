@@ -166,6 +166,15 @@ lws_tls_mbedtls_cert_info(mbedtls_x509_crt *x509, enum lws_tls_cert_info type,
 		}
 		break;
 	}
+	case LWS_TLS_CERT_INFO_DER_RAW:
+	{
+		if (len < x509->raw.len) {
+			return -1;
+		}
+		memcpy(buf->ns.name, x509->raw.p, x509->raw.len);
+		buf->ns.len = x509->raw.len;
+		break;
+	}
 
 	default:
 		return -1;

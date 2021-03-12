@@ -42,6 +42,8 @@ enum lws_tls_cert_info {
 	 * same tls backend, ie, OpenSSL or mbedTLS.  The different backends
 	 * produce different, incompatible representations for the same cert.
 	 */
+	LWS_TLS_CERT_INFO_DER_RAW,
+	/**< the certificate's raw DER representation */
 };
 
 union lws_tls_cert_info_results {

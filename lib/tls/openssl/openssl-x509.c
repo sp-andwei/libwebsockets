@@ -164,6 +164,21 @@ lws_tls_openssl_cert_info(X509 *x509, enum lws_tls_cert_info type,
 #endif
 		return 0;
 	}
+	case LWS_TLS_CERT_INFO_DER_RAW:
+	{
+		int der_len = i2d_X509(x509, NULL);
+		uint8_t *tmp = (uint8_t *)buf->ns.name;
+
+		if (der_len < 0 || (size_t)der_len > len) {
+			return -1;
+		}
+		if (0 > (der_len = i2d_X509(x509, &tmp))) {
+			return -1;
+		}
+
+		buf->ns.len = der_len;
+		return 0;
+	}
 	default:
 		return -1;
 	}
